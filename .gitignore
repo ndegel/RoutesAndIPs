@@ -20,3 +20,6 @@
 # Private Node Modules
 node_modules/
 creds.js
+
+# private files
+anlagen.xml

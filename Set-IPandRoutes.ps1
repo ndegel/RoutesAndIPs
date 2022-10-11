@@ -1,6 +1,14 @@
 #Requires -RunAs
 #Requires -Version 5.1
 
+param (
+    # path to xml file
+    [Parameter(Mandatory)]
+    [string] $Path
+)
+
+$UsbNICAlias = "USB NIC"
+
 function Get-InterfaceConfiguration {
     param (
         # alias of chosen interface
@@ -70,7 +78,6 @@ function Get-RoutesString {
     return ($Routes -join "`n")
 }
 
-$UsbNICAlias = "USB-NIC"
 
 if ("Connected" -eq ($IfUsbNIC = Get-NetIPInterface -AddressFamily IPv4 -InterfaceAlias $UsbNICAlias -ErrorAction SilentlyContinue).ConnectionState) {
     Write-Host "Interface $UsbNICAlias wird verwendet."
@@ -109,7 +116,7 @@ do {
 
 
 # XML Verarbeitung
-[xml]$XMLIPConfigurations = Get-Content -Path .\test.xml
+[xml]$XMLIPConfigurations = Get-Content -Path $Path
 
 $IPConfigurations = @()
 
