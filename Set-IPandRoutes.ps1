@@ -87,24 +87,25 @@ if ("Connected" -eq ($IfUsbNIC = Get-NetIPInterface -AddressFamily IPv4 -Interfa
     Get-InterfaceConfiguration -IfAlias $UsbNICAlias -IfIndex $IfUsbNIC.ifIndex
 }
 
-($Interfaces = Get-NetIPInterface -AddressFamily IPv4 | ForEach-Object {$Index = 1} {
-    [PSCustomObject] @{
-        Index = $Index;
-        ifIndex = $_.ifIndex;
-        InterfaceAlias = $_.InterfaceAlias;
-        ConnectionState = $_.ConnectionState
-    };
+if (!$SelectedInterface){
+    ($Interfaces = Get-NetIPInterface -AddressFamily IPv4 | ForEach-Object {$Index = 1} {
+        [PSCustomObject] @{
+            Index = $Index;
+            ifIndex = $_.ifIndex;
+            InterfaceAlias = $_.InterfaceAlias;
+            ConnectionState = $_.ConnectionState
+        };
 
-    $Index++
-}) | Select-Object Index, ifIndex, InterfaceAlias, ConnectionState | Format-Table -AutoSize
+        $Index++
+    }) | Select-Object Index, ifIndex, InterfaceAlias, ConnectionState | Format-Table -AutoSize
 
-do {
-    [int]$SelectedIndex = Read-Host "Index des Interfaces eingeben, das verwendet werden soll"
-} while ($SelectedIndex -le 0 -or $SelectedIndex -gt $Index)
-
-$SelectedInterface = $Interfaces[$SelectedIndex-1]
-
-Get-InterfaceConfiguration -IfAlias $SelectedInterface.InterfaceAlias -IfIndex $SelectedInterface.ifIndex
+    do {
+        [int]$SelectedIndex = Read-Host "Index des Interfaces eingeben, das verwendet werden soll"
+    } while ($SelectedIndex -le 0 -or $SelectedIndex -gt $Index)
+    $SelectedInterface = $Interfaces[$SelectedIndex-1]
+    
+    Get-InterfaceConfiguration -IfAlias $SelectedInterface.InterfaceAlias -IfIndex $SelectedInterface.ifIndex
+}
 
 do {
     $Answer = Read-Host "`nAktuelle Konfiguration ueberschreiben? [Y/n]"
@@ -222,13 +223,16 @@ if ($Unteranlage) {
     $IPAddress = $Unteranlage.IP
     $NetMask = $Unteranlage.Netmask
     $DNS = $Unteranlage.DNS
-
-    $Routes = Get-Routes -RoutesFromXML $Unteranlage.Route
+    if ($Unteranlage.Route) {
+        $Routes = Get-Routes -RoutesFromXML $Unteranlage.Route
+    }
 } else {
     $IPAddress = $Anlage.IP
     $NetMask = $Anlage.Netmask
     $DNS = $Anlage.DNS
-    $Routes = Get-Routes -RoutesFromXML $Anlage.Route
+    if ($Anlage.Route) {
+        $Routes = Get-Routes -RoutesFromXML $Anlage.Route
+    }
 }
 
 
@@ -243,7 +247,9 @@ if (($SelectedInterface | Get-NetIPConfiguration).Ipv4DefaultGateway) {
 
 $SelectedInterface | New-NetIPAddress -IPAddress $IPAddress -AddressFamily IPv4 -PrefixLength $NetMask -Confirm:$true
 
-$SelectedInterface | Set-DnsClientServerAddress -ServerAddresses $DNS
+if ($DNS) {
+    $SelectedInterface | Set-DnsClientServerAddress -ServerAddresses $DNS
+}
 
 foreach ($Route in $Routes) {
     New-NetRoute -DestinationPrefix $Route.DestPrefix -InterfaceIndex $SelectedInterface.ifIndex -NextHop $Route.NextHop
